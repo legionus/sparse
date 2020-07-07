@@ -71,6 +71,8 @@ static void r_symbol(unsigned mode, struct position *pos, struct symbol *sym)
 		goto err;
 	default:
 		goto err;
+	case 'd':
+		break;
 	}
 
 	return;

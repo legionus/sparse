@@ -652,9 +652,21 @@ static void do_sym_list(struct symbol_list *list)
 	DO_LIST(list, sym, do_symbol(sym));
 }
 
+static void do_file(char *file)
+{
+	do_sym_list(__sparse(file));
+
+	DO_LIST(file_scope->symbols, sym,
+		if (sym->namespace == NS_MACRO) {
+			sym->kind = 'd';
+			reporter->r_symdef(sym);
+		}
+	);
+}
+
 void dissect(struct reporter *rep, struct string_list *filelist)
 {
 	reporter = rep;
 
-	DO_LIST(filelist, file, do_sym_list(__sparse(file)));
+	DO_LIST(filelist, file, do_file(file));
 }
