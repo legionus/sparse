@@ -2770,7 +2770,7 @@ static struct token *parse_function_body(struct token *token, struct symbol *dec
 	token = statement_list(token->next, &stmt->stmts);
 	end_function(decl);
 
-	if (!(decl->ctype.modifiers & MOD_INLINE))
+	if (dissect_inline_funcs || !(decl->ctype.modifiers & MOD_INLINE))
 		add_symbol(list, decl);
 	check_declaration(decl);
 	decl->definition = decl;

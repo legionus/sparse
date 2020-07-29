@@ -322,6 +322,8 @@ done:
 		show_usage();
 	}
 
+	dissect_inline_funcs = 1;
+
 	// enforce tabstop
 	tabstop = 1;
 
