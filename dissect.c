@@ -647,6 +647,55 @@ static inline struct symbol *do_symbol(struct symbol *sym)
 	return type;
 }
 
+static struct symbol *lookup_macro(struct ident *ident)
+{
+	struct symbol *sym = lookup_symbol(ident, NS_MACRO | NS_UNDEF);
+	if (sym && sym->namespace != NS_MACRO)
+		sym = NULL;
+	return sym;
+}
+
+static void do_macro(struct symbol *sym)
+{
+	int nargs = sym->arglist ? sym->arglist->count.normal : 0;
+	struct token *args[nargs];
+	struct token *token;
+
+	token = sym->arglist;
+	if (token) {
+		int narg = 0;
+		for (; !eof_token(token); token = token->next) {
+			if (token_type(token) == TOKEN_ARG_COUNT)
+				continue;
+			args[narg++] = token;
+		}
+	}
+
+	token = sym->expansion;
+
+	while (token && token_type(token) != TOKEN_UNTAINT) {
+		struct token *next = token->next;
+		switch (token_type(token)) {
+		case TOKEN_STR_ARGUMENT:
+			/* fall-through */
+		case TOKEN_QUOTED_ARGUMENT:
+		case TOKEN_MACRO_ARGUMENT:
+			token = args[token->argnum];
+			/* fall-through */
+		default:
+			if (token_type(token) == TOKEN_IDENT) {
+				struct symbol *token_sym = lookup_macro(token->ident);
+				if (token_sym) {
+					dissect_ctx = sym;
+					token_sym->kind = 'd';
+					reporter->r_symbol(U_R_PTR, &token->pos, token_sym);
+				}
+			}
+			break;
+		}
+		token = next;
+	}
+}
 static void do_sym_list(struct symbol_list *list)
 {
 	DO_LIST(list, sym, do_symbol(sym));
@@ -654,14 +703,21 @@ static void do_sym_list(struct symbol_list *list)
 
 static void do_file(char *file)
 {
-	do_sym_list(__sparse(file));
+	struct symbol_list *res = sparse_keep_tokens(file);
+
+	do_sym_list(res);
 
 	DO_LIST(file_scope->symbols, sym,
 		if (sym->namespace == NS_MACRO) {
+			dissect_ctx = NULL;
 			sym->kind = 'd';
 			reporter->r_symdef(sym);
+			do_macro(sym);
 		}
 	);
+
+	/* Drop the tokens for this file after parsing */
+	clear_token_alloc();
 }
 
 void dissect(struct reporter *rep, struct string_list *filelist)
